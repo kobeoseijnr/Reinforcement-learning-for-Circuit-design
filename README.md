@@ -1,4 +1,4 @@
-# MORL AutoCkt — Multi-Objective Reinforcement Learning for Analog Circuit Design
+# RLMAG: A Reinforcement Learning-based Multi-Objective Analog Circuit Design Optimizer with Large Language Models Guidance
 
 [![Python 3.8+](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-Framework-red.svg)](https://pytorch.org/)
