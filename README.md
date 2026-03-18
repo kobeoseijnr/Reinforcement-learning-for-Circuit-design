@@ -1,6 +1,6 @@
 # MORL AutoCkt — Multi-Objective Reinforcement Learning for Analog Circuit Design
 
-This repository contains experiments comparing **Multi-Objective Reinforcement Learning (MORL)** agents against the **Original AutoCkt** baseline for analog circuit (two-stage op-amp) optimization with a **15% tolerance** threshold.
+This repository contains experiments comparing **Multi-Objective Reinforcement Learning (MORL)** agents against the **Original AutoCkt** baseline for analog circuit (two-stage op-amp) optimization.
 
 ---
 
@@ -28,8 +28,7 @@ with_15%/
 │   ├── autockt/              # Original AutoCkt environment
 │   ├── eval_engines/         # NGSpice simulation engine
 │   ├── results/              # Baseline results
-│   │   ├── original_autockt_results_original.csv
-│   │   └── original_autockt_results_15percent.csv
+│   │   └── original_autockt_results_original.csv
 │   ├── main.py               # Original AutoCkt training
 │   └── evaluate.py           # Original AutoCkt evaluation
 │
@@ -96,7 +95,7 @@ with_15%/
 
 | Agent | Avg FOM (1000 specs) |
 |-------|---------------------|
-| Original AutoCkt (15%) | 0.4335 |
+| Original AutoCkt | 0.4335 |
 
 ---
 
@@ -134,7 +133,6 @@ python generate_all_report_graphs.py
 - **Circuit:** Two-stage operational amplifier (45nm bulk CMOS)
 - **Simulator:** NGSpice (via surrogate wrapper)
 - **Objectives:** Gain (dB), UGBW (MHz), Phase Margin (deg), Bias Current (mA)
-- **Tolerance:** 15% above target specifications
 - **Seed:** 42
 
 ---
