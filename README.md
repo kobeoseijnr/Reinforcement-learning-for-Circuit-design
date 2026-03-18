@@ -6,218 +6,182 @@
 
 ## Overview
 
-Analog circuit design automation using Reinforcement Learning (RL) is a promising approach to reduce manual effort and accelerate the design process. However, most existing RL-based methods only consider single-objective optimization, and even those that claim multi-objective (MO) support still reduce MO design specifications into a single scalar reward. This simplification obscures true trade-offs (Pareto fronts) among competing objectives, leads to sub-optimal designs, and requires retraining from scratch whenever desired MO specs change — a critical limitation for practical analog circuit automation.
+Analog circuit design automation using Reinforcement Learning (RL) can reduce manual effort and speed up the design process. However, most existing RL methods optimize a single objective, and even those that claim multi-objective (MO) support collapse all design specs into one scalar reward. This hides the real trade-offs between objectives, produces sub-optimal designs, and forces retraining whenever specs change.
 
-**RLMAG** addresses these challenges with an RL-based framework for MO analog circuit design that replaces scalar reward optimization with **vector-valued learning** and **preference-aware conditioning**. A preference vector sets objective weights, enabling a single trained model to generate designs across different trade-offs **without retraining**. We implement two preference guidance strategies — **Normalized Weight** and **Cosine-aligned guidance** — to drive optimal convergence, and integrate a **Large Language Model (LLM)-guided action masking** mechanism to prune actions likely to produce sub-optimal designs or increase runtime.
+**RLMAG** solves these problems. It is an RL framework for multi-objective analog circuit optimization that uses **vector-valued learning** and **preference-aware conditioning** instead of a scalar reward. A preference vector controls the objective weights, so one trained model can produce designs for different trade-offs without retraining. Two preference guidance strategies, **Normalized Weight** and **Cosine-aligned guidance**, help the agent converge to high-quality Pareto fronts. An **LLM-guided action masking** step filters out actions that would lead to bad designs or waste runtime.
 
 ### Highlights
 
-- **13× runtime speedup** compared to state-of-the-art approaches
-- **Meets all 1,000 target specifications** — a 6.6% improvement over baselines
-- **300× better figure of merit** in resulting output specifications
-- **No retraining required** when objective preferences change
-
----
+- **13x runtime speedup** over state-of-the-art methods
+- **Meets all 1,000 target specs** (6.6% improvement over baselines)
+- **300x better figure of merit** on output specifications
+- **No retraining needed** when preferences change
 
 ## Motivation
 
-Analog circuit design involves balancing multiple conflicting objectives — for example, increasing gain often comes at the cost of bandwidth or power consumption. Traditional RL approaches like AutoCkt use a weighted scalar reward, which:
+Designing analog circuits means balancing competing goals. Increasing gain often costs bandwidth or power. Standard RL approaches like AutoCkt use a single weighted reward, which has three problems:
 
-- Requires manual tuning of objective weights
-- Produces only a single solution per optimization run
-- Cannot capture the full trade-off landscape
+1. You have to manually tune objective weights
+2. You only get one solution per run
+3. You cannot see the full trade-off landscape
 
-Our MORL approach addresses these limitations by:
-
-- Learning a **Pareto front** of non-dominated solutions per specification
-- Using **cosine similarity** to a preference vector as a multi-objective reward signal
-- Incorporating **LLM-guided** and **neural-network-based** reward shaping to improve solution quality and diversity
-
----
+RLMAG fixes all three by learning a **Pareto front** of solutions per spec, using **cosine similarity** to a preference vector as the reward signal, and adding **LLM-guided** and **neural-network-based** reward shaping to improve quality and diversity.
 
 ## Circuit Under Test
 
 | Parameter | Value |
 |-----------|-------|
-| **Circuit** | Two-stage operational amplifier |
-| **Technology** | 45nm bulk CMOS |
-| **Simulator** | NGSpice (via surrogate model) |
-| **Design Variables** | Transistor widths, lengths, bias currents |
+| Circuit | Two-stage operational amplifier |
+| Technology | 45nm bulk CMOS |
+| Simulator | NGSpice (via surrogate model) |
+| Design Variables | Transistor widths, lengths, bias currents |
 
 ### Optimization Objectives
 
-| Objective | Unit | Direction |
-|-----------|------|-----------|
-| **Gain** | dB | Maximize |
-| **Unity-Gain Bandwidth (UGBW)** | MHz | Maximize |
-| **Phase Margin (PM)** | degrees | Maximize |
-| **Bias Current (Ibias)** | mA | Minimize |
-
----
+| Objective | Unit | Goal |
+|-----------|------|------|
+| Gain | dB | Maximize |
+| Unity-Gain Bandwidth (UGBW) | MHz | Maximize |
+| Phase Margin (PM) | degrees | Maximize |
+| Bias Current (Ibias) | mA | Minimize |
 
 ## Agents Compared
 
-| Agent | Architecture | Reward Function | Description |
-|-------|-------------|-----------------|-------------|
-| **Original AutoCkt** | DQN | Scalar weighted sum | Single-objective baseline — produces 1 solution per spec |
-| **Std MORL (cosine)** | Double DQN | Cosine similarity to preference vector | Standard multi-objective agent — produces a Pareto front of ~20 solutions |
-| **LLM MORL (cosine+llm)** | Double DQN | Cosine + LLM-based reward adjustment | Uses a Large Language Model to guide preference shaping for improved Pareto coverage |
-| **NW MORL** | Double DQN | Cosine + learned neural-network reward | Uses a trained neural network to adaptively shape the reward signal |
+| Agent | Architecture | Reward | What It Does |
+|-------|-------------|--------|--------------|
+| Original AutoCkt | DQN | Scalar weighted sum | Baseline, produces 1 solution per spec |
+| Std MORL (cosine) | Double DQN | Cosine similarity | Multi-objective agent, produces ~20 solutions per spec |
+| LLM MORL (cosine+llm) | Double DQN | Cosine + LLM adjustment | Uses an LLM to guide preference shaping for better Pareto coverage |
+| NW MORL | Double DQN | Cosine + learned NN reward | Uses a neural network to adaptively shape the reward |
 
-### Agent Architecture Details
-
-All MORL agents use a **Double Deep Q-Network (DDQN)** with:
-- Experience replay buffer
-- Target network with periodic updates
-- Epsilon-greedy exploration with decay
-- Multi-objective reward decomposition via cosine similarity
-
-The **LLM-guided** variant augments the cosine reward with preference adjustments suggested by a language model, while the **NW variant** learns an auxiliary reward network that co-trains with the policy.
-
----
+All MORL agents use a **Double Deep Q-Network (DDQN)** with experience replay, target network updates, epsilon-greedy exploration, and cosine similarity reward decomposition. The LLM variant adds preference adjustments from a language model. The NW variant co-trains an auxiliary reward network alongside the policy.
 
 ## Key Results
 
-### Hypervolume & Sparsity Comparison (1,000 specs)
+### Hypervolume and Sparsity (1,000 specs)
 
-| Metric | Original AutoCkt | Std MORL (cosine) | LLM MORL (cosine+llm) |
-|--------|:---------------:|:-----------------:|:--------------------:|
-| **Mean Hypervolume** | 1.40e+05 | **3.83e+09** | 2.62e+09 |
-| **Median Hypervolume** | 9.44e+04 | **3.82e+09** | 2.61e+09 |
-| **Std Hypervolume** | 1.33e+05 | 2.49e+08 | 9.13e+07 |
-| **Mean Sparsity** | 0.00 | 3.60e+05 | **1.35e+05** |
-| **Mean Pareto Front Size** | 1.00 | **20.00** | **20.00** |
+| Metric | Original AutoCkt | Std MORL | LLM MORL |
+|--------|:---------------:|:--------:|:--------:|
+| Mean Hypervolume | 1.40e+05 | **3.83e+09** | 2.62e+09 |
+| Median Hypervolume | 9.44e+04 | **3.82e+09** | 2.61e+09 |
+| Std Hypervolume | 1.33e+05 | 2.49e+08 | 9.13e+07 |
+| Mean Sparsity | 0.00 | 3.60e+05 | **1.35e+05** |
+| Mean Pareto Front Size | 1 | **20** | **20** |
 
-> **Hypervolume** measures the volume of objective space dominated by the Pareto front — higher is better.
-> **Sparsity** measures how spread out solutions are along the front — lower means tighter, more uniform coverage.
+**Hypervolume** = volume of objective space covered by the Pareto front (higher is better).
+**Sparsity** = how spread out solutions are along the front (lower means more uniform coverage).
 
-### Key Findings
+### What This Means
 
-1. **MORL massively outperforms AutoCkt on hypervolume** — Std MORL achieves ~27,000x higher hypervolume than Original AutoCkt, demonstrating vastly superior multi-objective coverage.
+1. **MORL produces 27,000x higher hypervolume** than AutoCkt, showing vastly better multi-objective coverage.
+2. **MORL gives ~20 solutions per spec** instead of just 1, providing designers with real trade-off options.
+3. **LLM guidance improves coverage uniformity** with lower sparsity (1.35e+05 vs 3.60e+05).
+4. **AutoCkt sparsity is zero** because it only returns one solution, so there is no front to measure.
 
-2. **Pareto front diversity** — MORL agents produce fronts of ~20 non-dominated solutions per spec, compared to just 1 for AutoCkt. This gives designers a rich set of trade-off options.
-
-3. **LLM-guided reward shaping improves Pareto coverage** — The LLM variant achieves lower sparsity (1.35e+05 vs 3.60e+05), meaning its solutions are more evenly distributed along the Pareto front.
-
-4. **Original AutoCkt has zero sparsity** — because it only produces a single solution (front size = 1), there is no spread to measure.
-
-### Average Figure of Merit (FOM)
+### Average Figure of Merit
 
 | Agent | Avg FOM (1,000 specs) |
 |-------|:--------------------:|
 | Original AutoCkt | 0.4335 |
 
----
-
 ## Project Structure
 
 ```
 morl_experiments/
-├── morl_autockt/                          # MORL experiment code and results
+├── morl_autockt/                          # MORL code and results
 │   ├── autockt/                           # OpenAI Gym environment for the op-amp
-│   │   ├── envs/                          # Gym environment definitions
-│   │   └── gen_specs/                     # Target specification generator
-│   ├── methodology/                       # MORL agent implementations
+│   │   ├── envs/                          # Environment definitions
+│   │   └── gen_specs/                     # Target spec generator
+│   ├── methodology/                       # Agent implementations
 │   │   ├── autockt/
-│   │   │   ├── models/                    # DDQN neural network architectures
-│   │   │   ├── evaluation/                # Multi-objective evaluators (HV, sparsity)
-│   │   │   └── utils/                     # MORL utility functions
-│   │   └── eval_engines/                  # NGSpice simulation & surrogate wrapper
+│   │   │   ├── models/                    # DDQN architectures
+│   │   │   ├── evaluation/                # Hypervolume, sparsity evaluators
+│   │   │   └── utils/                     # Utility functions
+│   │   └── eval_engines/                  # NGSpice and surrogate wrapper
 │   │       └── ngspice/
-│   │           ├── ngspice_inputs/        # Netlists, SPICE models, YAML configs
+│   │           ├── ngspice_inputs/        # Netlists, SPICE models, configs
 │   │           ├── ngspice_wrapper.py     # Direct NGSpice interface
-│   │           └── surrogate_wrapper.py   # Surrogate model for fast evaluation
-│   ├── data/                              # Target specification files (JSON)
-│   ├── results/                           # All experiment outputs
-│   │   ├── morl_best_per_spec_*.csv       # Best FOM per spec for each agent
-│   │   ├── morl_top10_*.csv               # Top 10 specs by FOM per agent
-│   │   ├── hypervolume_sparsity_comparison.csv
-│   │   ├── training_history_*.json        # Training curves
-│   │   └── models_*/                      # Saved model checkpoints
-│   ├── main.py                            # Main MORL training entry point
-│   ├── evaluate.py                        # Post-training evaluation
-│   ├── train_nw_vs_cosine.py              # NW agent vs Cosine agent comparison
-│   ├── gen_nw_original.py                 # Generate NW results on original specs
+│   │           └── surrogate_wrapper.py   # Fast surrogate evaluator
+│   ├── data/                              # Target spec files (JSON)
+│   ├── results/                           # All outputs (CSV, JSON, models)
+│   ├── main.py                            # Training entry point
+│   ├── evaluate.py                        # Evaluation script
+│   ├── train_nw_vs_cosine.py              # NW vs Cosine agent comparison
+│   ├── gen_nw_original.py                 # NW results on original specs
 │   └── merge_llm_to_cosine.py             # Merge LLM results into cosine CSV
 │
-├── original_autockt/                      # Original AutoCkt baseline
-│   ├── autockt/                           # Original Gym environment
+├── original_autockt/                      # AutoCkt baseline
+│   ├── autockt/                           # Original environment
 │   ├── eval_engines/                      # Original NGSpice engine
-│   ├── results/                           # Baseline CSV results
-│   ├── graphs/                            # Baseline performance plots
-│   ├── main.py                            # Original training script
-│   └── evaluate.py                        # Original evaluation script
+│   ├── results/                           # Baseline results
+│   ├── graphs/                            # Baseline plots
+│   ├── main.py                            # Training script
+│   └── evaluate.py                        # Evaluation script
 │
-├── best_20/                               # Analysis & visualization
-│   ├── generate_std_vs_llm_graphs.py      # 4-group comparison graphs (6 subplots)
-│   ├── generate_all_report_graphs.py      # Full report figure generation
-│   ├── Comprehensive_Comparison_Report.md # Detailed written comparison
-│   └── std_vs_llm_figures/                # Output figure directory
+├── best_20/                               # Analysis and visualization
+│   ├── generate_std_vs_llm_graphs.py      # 4-group comparison graphs
+│   ├── generate_all_report_graphs.py      # Full report figures
+│   ├── Comprehensive_Comparison_Report.md # Written comparison
+│   └── std_vs_llm_figures/                # Output figures
 │
-└── create_best_comparison.py              # Best-of-1000 comparison script
+└── create_best_comparison.py              # Best-of-1000 comparison
 ```
 
----
+## Results Files
 
-## Results Files Reference
+### Training Results (all 1,000 specs)
 
-### Raw Training Results (per episode, all 1,000 specs)
 | File | Description |
 |------|-------------|
-| `morl_autockt_results_original.csv` | Std MORL agent outputs |
-| `morl_autockt_results_llm_cosine.csv` | LLM-guided MORL agent outputs |
-| `morl_autockt_results_nw.csv` | NW MORL agent outputs |
-| `morl_autockt_results_original_cosine_with_llm.csv` | Combined cosine + LLM results |
+| `morl_autockt_results_original.csv` | Std MORL outputs |
+| `morl_autockt_results_llm_cosine.csv` | LLM MORL outputs |
+| `morl_autockt_results_nw.csv` | NW MORL outputs |
+| `morl_autockt_results_original_cosine_with_llm.csv` | Combined cosine + LLM |
 
-### Aggregated Results (best per spec)
+### Best Per Spec
+
 | File | Description |
 |------|-------------|
-| `morl_best_per_spec_1000.csv` | Best FOM per spec — Std MORL |
-| `morl_best_per_spec_llm_cosine.csv` | Best FOM per spec — LLM agent |
-| `morl_best_per_spec_nw.csv` | Best FOM per spec — NW agent |
+| `morl_best_per_spec_1000.csv` | Best FOM per spec, Std MORL |
+| `morl_best_per_spec_llm_cosine.csv` | Best FOM per spec, LLM agent |
+| `morl_best_per_spec_nw.csv` | Best FOM per spec, NW agent |
 
-### Top Performing Specs
+### Top 10 Specs
+
 | File | Description |
 |------|-------------|
-| `morl_top10_llm_cosine.csv` | Top 10 specs by FOM — LLM agent |
-| `morl_top10_nw.csv` | Top 10 specs by FOM — NW agent |
-| `morl_top10_std_cosine.csv` | Top 10 specs by FOM — Std MORL |
+| `morl_top10_llm_cosine.csv` | Top 10 by FOM, LLM agent |
+| `morl_top10_nw.csv` | Top 10 by FOM, NW agent |
+| `morl_top10_std_cosine.csv` | Top 10 by FOM, Std MORL |
 
-### Multi-Objective Metrics
+### Metrics
+
 | File | Description |
 |------|-------------|
-| `hypervolume_sparsity_comparison.csv` | Per-spec hypervolume and sparsity for all agents |
-| `training_history_cosine.json` | Training reward curves — cosine agent |
-| `training_history_nw.json` | Training reward curves — NW agent |
-
----
+| `hypervolume_sparsity_comparison.csv` | Per-spec hypervolume and sparsity |
+| `training_history_cosine.json` | Training curves, cosine agent |
+| `training_history_nw.json` | Training curves, NW agent |
 
 ## Visualization
 
-### 4-Group Comparison Graphs
+### Comparison Graphs
 
-6-subplot pairwise objective plots comparing all four agents on the same specifications:
+Generate 6-subplot pairwise objective plots comparing all four agents:
 
 ```bash
 cd morl_experiments/best_20
 python generate_std_vs_llm_graphs.py
 ```
 
-**Outputs:**
+Outputs:
+
 | File | Description |
 |------|-------------|
-| `top10_6subplots_std_vs_llm_FINAL.png` | LLM top 10 specs — all 4 agents |
-| `top10_6subplots_std_vs_nw_FINAL.png` | NW top 10 specs — all 4 agents |
-| `top10_6subplots_4groups_auckt.png` | AutoCkt top 10 specs — all 4 agents |
+| `top10_6subplots_std_vs_llm_FINAL.png` | LLM top 10 specs, all 4 agents |
+| `top10_6subplots_std_vs_nw_FINAL.png` | NW top 10 specs, all 4 agents |
+| `top10_6subplots_4groups_auckt.png` | AutoCkt top 10 specs, all 4 agents |
 
-**Marker Legend:**
-
-| Marker | Group |
-|--------|-------|
-| ○ Circle | Target specification |
-| ⬡ Hexagon | Original AutoCkt |
-| ■ Square | Std MORL (cosine) |
-| ▲ Triangle | LLM MORL or NW |
+Marker legend: Circle = Target, Hexagon = Original AutoCkt, Square = Std MORL, Triangle = LLM/NW MORL.
 
 ### Full Report Graphs
 
@@ -226,16 +190,14 @@ cd morl_experiments/best_20
 python generate_all_report_graphs.py
 ```
 
----
-
 ## Getting Started
 
 ### Prerequisites
 
-- **Python** 3.8+
-- **PyTorch** (for DDQN agent training)
-- **NGSpice** (for circuit simulation, or use the included surrogate model)
-- **NumPy**, **Pandas**, **Matplotlib** (data processing and visualization)
+- Python 3.8+
+- PyTorch
+- NGSpice (or use the included surrogate model)
+- NumPy, Pandas, Matplotlib
 
 ### Installation
 
@@ -245,21 +207,21 @@ cd Reinforcement-learning-for-Circuit-design
 pip install numpy pandas matplotlib torch
 ```
 
-### Training a MORL Agent
+### Train
 
 ```bash
 cd morl_experiments/morl_autockt
 python main.py
 ```
 
-### Evaluating Results
+### Evaluate
 
 ```bash
 cd morl_experiments/morl_autockt
 python evaluate.py
 ```
 
-### Generating Comparison Graphs
+### Generate Graphs
 
 ```bash
 cd morl_experiments/best_20
@@ -267,35 +229,25 @@ python generate_std_vs_llm_graphs.py
 python generate_all_report_graphs.py
 ```
 
----
-
 ## Methodology
 
-### Multi-Objective Reward Design
+### Multi-Objective Reward
 
-Instead of a single scalar reward, our agents receive a **cosine similarity** score measuring alignment between the achieved objective vector and a target preference vector:
+Instead of a scalar reward, agents get a **cosine similarity** score between their achieved objective vector and the target preference vector:
 
 ```
 reward = cos(achieved_objectives, target_preference)
 ```
 
-This encourages the agent to move toward the desired region of objective space while maintaining diversity across the Pareto front.
+This pushes the agent toward the desired region of objective space while keeping solutions diverse across the Pareto front.
 
-### LLM-Guided Reward Shaping
+### LLM-Guided Action Masking
 
-The LLM variant queries a language model to suggest **preference adjustments** based on the current state of the Pareto front. This helps:
-- Focus exploration on under-represented regions of the front
-- Improve uniformity of solution spacing
-- Adapt preference vectors dynamically during training
+The LLM variant queries a language model to suggest preference adjustments based on the current Pareto front. This focuses exploration on under-represented regions, improves solution spacing, and adapts preference vectors during training.
 
 ### Neural Network Reward Shaping
 
-The NW variant trains an auxiliary neural network alongside the policy to learn an adaptive reward bonus. This network:
-- Takes the current state and objective values as input
-- Outputs a reward adjustment term
-- Is co-trained to maximize Pareto front quality metrics
-
----
+The NW variant trains an auxiliary neural network alongside the policy. This network takes the current state and objective values as input and outputs a reward adjustment that is co-trained to maximize Pareto front quality.
 
 ## Configuration
 
@@ -307,13 +259,9 @@ The NW variant trains an auxiliary neural network alongside the policy to learn 
 | Training Episodes | 5,000 (NW agent) |
 | Exploration | Epsilon-greedy with decay |
 
----
-
 ## License
 
 This project is for academic and research purposes.
-
----
 
 ## Acknowledgments
 
