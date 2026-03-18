@@ -6,9 +6,16 @@
 
 ## Overview
 
-This project extends the [AutoCkt](https://arxiv.org/abs/2001.01808) framework — an RL-based approach to analog circuit parameter optimization — into a **multi-objective** setting. Instead of collapsing multiple circuit performance metrics into a single scalar reward, our **Multi-Objective Reinforcement Learning (MORL)** agents learn to produce diverse **Pareto-optimal** solution sets that simultaneously optimize competing objectives.
+Analog circuit design automation using Reinforcement Learning (RL) is a promising approach to reduce manual effort and accelerate the design process. However, most existing RL-based methods only consider single-objective optimization, and even those that claim multi-objective (MO) support still reduce MO design specifications into a single scalar reward. This simplification obscures true trade-offs (Pareto fronts) among competing objectives, leads to sub-optimal designs, and requires retraining from scratch whenever desired MO specs change — a critical limitation for practical analog circuit automation.
 
-We compare three MORL agent variants against the original single-objective AutoCkt baseline, evaluating them across **1,000 target specifications** for a two-stage operational amplifier designed in **45nm bulk CMOS** technology.
+**RLMAG** addresses these challenges with an RL-based framework for MO analog circuit design that replaces scalar reward optimization with **vector-valued learning** and **preference-aware conditioning**. A preference vector sets objective weights, enabling a single trained model to generate designs across different trade-offs **without retraining**. We implement two preference guidance strategies — **Normalized Weight** and **Cosine-aligned guidance** — to drive optimal convergence, and integrate a **Large Language Model (LLM)-guided action masking** mechanism to prune actions likely to produce sub-optimal designs or increase runtime.
+
+### Highlights
+
+- **13× runtime speedup** compared to state-of-the-art approaches
+- **Meets all 1,000 target specifications** — a 6.6% improvement over baselines
+- **300× better figure of merit** in resulting output specifications
+- **No retraining required** when objective preferences change
 
 ---
 
