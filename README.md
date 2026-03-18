@@ -7,7 +7,7 @@ This repository contains experiments comparing **Multi-Objective Reinforcement L
 ## Project Structure
 
 ```
-with_15%/
+morl_experiments/
 ├── morl_autockt/             # MORL experiment code and results
 │   ├── autockt/              # AutoCkt environment (gym-based RL env)
 │   ├── methodology/          # MORL agent implementations
@@ -115,14 +115,14 @@ Run `generate_std_vs_llm_graphs.py` to produce:
 - ▲ Triangle → LLM MORL or NW
 
 ```bash
-cd with_15%/best_20
+cd morl_experiments/best_20
 python generate_std_vs_llm_graphs.py
 ```
 
 ### Full Report Graphs
 
 ```bash
-cd with_15%/best_20
+cd morl_experiments/best_20
 python generate_all_report_graphs.py
 ```
 
